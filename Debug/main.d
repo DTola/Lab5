@@ -69,7 +69,6 @@ main.obj: C:/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.4.LTS/include/_ti_config.h
 main.obj: C:/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.4.LTS/include/linkage.h
 main.obj: C:/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.4.LTS/include/abi_prefix.h
 main.obj: C:/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.4.LTS/include/xlocale/_time.h
-main.obj: ../Threads.h
 main.obj: ../Game.h
 main.obj: C:/Users/Daniel/workspace_v8/Lab5/Libraries/CC3100SupportPackage/cc3100_usage/cc3100_usage.h
 main.obj: C:/Users/Daniel/workspace_v8/Lab5/Libraries/CC3100SupportPackage/simplelink/include/simplelink.h
@@ -160,7 +159,6 @@ C:/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.4.LTS/include/_ti_config.h:
 C:/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.4.LTS/include/linkage.h: 
 C:/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.4.LTS/include/abi_prefix.h: 
 C:/ti/ccsv8/tools/compiler/ti-cgt-arm_18.1.4.LTS/include/xlocale/_time.h: 
-../Threads.h: 
 ../Game.h: 
 C:/Users/Daniel/workspace_v8/Lab5/Libraries/CC3100SupportPackage/cc3100_usage/cc3100_usage.h: 
 C:/Users/Daniel/workspace_v8/Lab5/Libraries/CC3100SupportPackage/simplelink/include/simplelink.h: 

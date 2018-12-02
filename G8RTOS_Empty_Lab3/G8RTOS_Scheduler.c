@@ -570,4 +570,40 @@ sched_ErrCode_t G8RTOS_AddAPeriodicEvent(void (*AthreadToAdd)(void), uint8_t pri
     return NO_ERROR;
 }
 
+sched_ErrCode_t G8RTOS_KillAllOtherThreads(){
+    int32_t PRIMASK;
+    PRIMASK = StartCriticalSection();
+
+    //Like all other kills, we must make sure it is not the only thread
+    //If only one thread running then it can't kill itself for personal reasons
+    if(NumberOfThreads == 1){
+        return CANNOT_KILL_LAST_THREAD;
+    }
+
+    //Have it pointing to the next thread so we dont kill the current one
+    tcb_t *searcher = CurrentlyRunningThread->nextTCB;
+
+    //We don't need to do any fancy next or prev pointer fixing because we are left with one
+    int i = 0;  //Compiler pls
+    for(i = 0;  i < NumberOfThreads; i++){
+        searcher->isAlive = false;
+        searcher = searcher->nextTCB;
+
+        //Worked better than NumberOfThreads - 1
+        if(searcher == CurrentlyRunningThread){
+            break;
+        }
+    }
+
+    //Decrement thread count
+    NumberOfThreads = 1;
+
+    //Fix currentlyrunningthreads pointers
+    CurrentlyRunningThread->preTCB = CurrentlyRunningThread;
+    CurrentlyRunningThread->nextTCB = CurrentlyRunningThread;
+
+    EndCriticalSection(PRIMASK);
+    return NO_ERROR;
+}
+
 /*********************************************** Public Functions *********************************************************************/

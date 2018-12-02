@@ -9,37 +9,37 @@ CMD_SRCS += \
 ../msp432p401r.cmd 
 
 C_SRCS += \
-../Threads.c \
+../Game.c \
 ../main.c \
 ../startup_msp432p401r_ccs.c \
 ../system_msp432p401r.c 
 
 C_DEPS += \
-./Threads.d \
+./Game.d \
 ./main.d \
 ./startup_msp432p401r_ccs.d \
 ./system_msp432p401r.d 
 
 OBJS += \
-./Threads.obj \
+./Game.obj \
 ./main.obj \
 ./startup_msp432p401r_ccs.obj \
 ./system_msp432p401r.obj 
 
 OBJS__QUOTED += \
-"Threads.obj" \
+"Game.obj" \
 "main.obj" \
 "startup_msp432p401r_ccs.obj" \
 "system_msp432p401r.obj" 
 
 C_DEPS__QUOTED += \
-"Threads.d" \
+"Game.d" \
 "main.d" \
 "startup_msp432p401r_ccs.d" \
 "system_msp432p401r.d" 
 
 C_SRCS__QUOTED += \
-"../Threads.c" \
+"../Game.c" \
 "../main.c" \
 "../startup_msp432p401r_ccs.c" \
 "../system_msp432p401r.c" 

@@ -19,6 +19,11 @@
 /*********************************************** Externs ********************************************************************/
 
 /* Semaphores here */ 
+extern semaphore_t I2C_Semaphore;  //Sensor stuff
+extern semaphore_t LCD_Semaphore;
+extern semaphore_t GameState_Semaphore;
+extern semaphore_t CC3100_WIFI_Semaphore;
+extern semaphore_t Client_Player_Semaphore;
 
 /*********************************************** Externs ********************************************************************/
 

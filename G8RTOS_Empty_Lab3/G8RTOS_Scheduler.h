@@ -84,6 +84,8 @@ threadId_t G8RTOS_GetThreadId();
 sched_ErrCode_t G8RTOS_KillThread(threadId_t threadId);
 sched_ErrCode_t G8RTOS_KillSelf();
 
+sched_ErrCode_t G8RTOS_KillAllOtherThreads();
+
 /*********************************************** Public Functions *********************************************************************/
 
 #endif /* G8RTOS_SCHEDULER_H_ */
