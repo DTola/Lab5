@@ -20,6 +20,7 @@ void main(void)
 
 //	initCC3100();
 
+
     G8RTOS_InitSemaphore(&I2C_Semaphore, 1);
     G8RTOS_InitSemaphore(&LCD_Semaphore, 1);
     G8RTOS_InitSemaphore(&GameState_Semaphore, 1);

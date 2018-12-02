@@ -185,9 +185,33 @@ void MoveLEDs(){
 /*********************************************** Public Functions *********************************************************************/
 /*
  * Returns either Host or Client depending on button press
+ *
+ * Description:
+ * We know GPIO P4.4 and P4.5 are buttons
  */
 playerType GetPlayerRole(){
+    //We wait until the button is pressed
+    //While loops suck but its not like anything else is running
+    //gpio.h
+    uint8_t ButtonHost = 1;
+    uint8_t ButtonClient = 1;
 
+    GPIO_setAsInputPinWithPullUpResistor(GPIO_PORT_P4, GPIO_PIN4);
+    GPIO_setAsInputPinWithPullUpResistor(GPIO_PORT_P4, GPIO_PIN5);
+
+    //BUttons have pull up so a press is 0
+    //We wait for a press
+    while((ButtonHost == 1) && (ButtonClient == 1)){
+        ButtonHost = GPIO_getInputPinValue(GPIO_PORT_P4, GPIO_PIN4);
+        ButtonClient = GPIO_getInputPinValue(GPIO_PORT_P4, GPIO_PIN5);
+    }
+
+    if(ButtonHost == 0){
+        return Host;
+    }
+    else{
+        return Client;
+    }
 }
 
 /*
@@ -876,7 +900,7 @@ void EndOfGameHost(){
 
     //Print message that waits for host action to start new game
     //No need to wait for a semaphore here obviously
-    LCD_Text(0, 120, "WAITING FOR BUTTON PRESS TO START NEW GAME", LCD_BLACK);
+    LCD_Text(0, 120, "WAITING FOR BUTTON PRESS TO START NEW GAME", LCD_WHITE);
 
     //Create Aperiodic Thread that waits for host action press
     //Just use the existing getplayerrole function instead and use a lazy while loop
