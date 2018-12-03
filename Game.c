@@ -152,7 +152,7 @@ void MoveLEDs(){
     GameState_t GameState_Copy;
 
     //Use to compare if scores change (saves time if scores didnt change)
-    uint8_t Prev_Scores[2] = {0, 0};
+    uint8_t Prev_LEDScores[2] = {0, 0};
 
     //Led goes: 0x0, 0x1, 0x3, 0x7, 0xF, 0x1F, 0x3F, 0x7F, 0xFF
     //Maximum score is thus 8
@@ -166,16 +166,16 @@ void MoveLEDs(){
 
         //Save time/resources if score doesnt change
         //0 is host
-        if(GameState_Copy.overallScores[0] != Prev_Scores[0]){
+        if(GameState_Copy.overallScores[0] != Prev_LEDScores[0]){
             //This is the only thread with LEDs so no need for Semaphore
-            LP3943_LedModeSet(RED, LED_DATA_SET[GameState_Copy.overallScores[0]]);
-            Prev_Scores[0] = GameState_Copy.overallScores[0];
+            LP3943_LedModeSet(RED, LED_DATA_SET[GameState_Copy.LEDScores[0]]);
+            Prev_LEDScores[0] = GameState_Copy.LEDScores[0];
         }
 
         //1 is client
-        if(GameState_Copy.overallScores[1] != Prev_Scores[1]){
-            LP3943_LedModeSet(BLUE, LED_DATA_SET[GameState_Copy.overallScores[1]]);
-            Prev_Scores[1] = GameState_Copy.overallScores[1];
+        if(GameState_Copy.overallScores[1] != Prev_LEDScores[1]){
+            LP3943_LedModeSet(BLUE, LED_DATA_SET[GameState_Copy.LEDScores[1]]);
+            Prev_LEDScores[1] = GameState_Copy.LEDScores[1];
         }
 
         sleep(175); //Testing for now
@@ -216,8 +216,25 @@ playerType GetPlayerRole(){
 
 /*
  * Draw players given center X center coordinate
+ *
+ * Used to initially draw the player at Center
  */
-void DrawPlayer(GeneralPlayerInfo_t * player);
+void DrawPlayer(GeneralPlayerInfo_t * player){
+    if(player->position == TOP){
+        LCD_DrawRectangle(player->currentCenter - PADDLE_LEN_D2,
+                          player->currentCenter + PADDLE_LEN_D2,
+                          TOP_PADDLE_EDGE - PADDLE_WID,
+                          TOP_PADDLE_EDGE,
+                          player->color);
+    }
+    else{
+        LCD_DrawRectangle(player->currentCenter - PADDLE_LEN_D2,
+                          player->currentCenter + PADDLE_LEN_D2,
+                          BOTTOM_PADDLE_EDGE,
+                          BOTTOM_PADDLE_EDGE + PADDLE_WID,
+                          player->color);
+    }
+}
 
 /*
  * Updates player's paddle based on current and new center
@@ -273,13 +290,13 @@ void UpdatePlayerOnScreen(PrevPlayer_t * prevPlayerIn, GeneralPlayerInfo_t * out
             //   [  |  ]
             LCD_DrawRectangle(prevPlayerIn->Center - PADDLE_LEN_D2,
                               outPlayer->currentCenter - PADDLE_LEN_D2,
-                              TOP_PADDLE_EDGE - PADDLE_WID,
-                              TOP_PADDLE_EDGE,
+                              BOTTOM_PADDLE_EDGE,
+                              BOTTOM_PADDLE_EDGE + PADDLE_WID,
                               LCD_BLACK);
             LCD_DrawRectangle(prevPlayerIn->Center + PADDLE_LEN_D2,
                               outPlayer->currentCenter + PADDLE_LEN_D2,
-                              TOP_PADDLE_EDGE - PADDLE_WID,
-                              TOP_PADDLE_EDGE,
+                              BOTTOM_PADDLE_EDGE,
+                              BOTTOM_PADDLE_EDGE + PADDLE_WID,
                               outPlayer->color);
         }
         else{
@@ -340,10 +357,75 @@ void UpdateBallOnScreen(PrevBall_t * previousBall, Ball_t * currentBall, uint16_
     previousBall->CenterY = currentBall->currentCenterY;
 }
 
+//Updates LED array without creating a new thread
+void MoveLEDs_noThread(){
+    uint16_t LED_DATA_SET[9] = {0x00, 0x01, 0x03, 0x07, 0x0F, 0x1F, 0x3F, 0x7F, 0xFF};
+    LP3943_LedModeSet(RED, LED_DATA_SET[Current_GameState.overallScores[0]]);
+    LP3943_LedModeSet(BLUE, LED_DATA_SET[Current_GameState.overallScores[1]]);
+}
+
 /*
  * Initializes and prints initial game state
+ *
+ * No description was given so here is one:
+ * -Reinits the GameState values
+ * -Recreates the board (edges, scores, paddles) (don't use draw obj because no previous state)
+ * -Clears the LED scores
  */
-void InitBoardState();
+void InitBoardState(){
+    Current_GameState.LEDScores[0] = 0;
+    Current_GameState.LEDScores[1] = 0;
+
+    //Update the LEDs
+    MoveLEDs_noThread();
+
+    //Reset all the balls for use later
+    int i = 0;  //Because compiler is dumb
+    for(i = 0; i < MAX_NUM_OF_BALLS; i++){
+        Current_GameState.balls[i].alive = false;
+        Current_GameState.balls[i].color = LCD_WHITE;
+
+        //Put them off the screen just in case
+        Current_GameState.balls[i].currentCenterX = -10;
+        Current_GameState.balls[i].currentCenterY = -10;
+    }
+
+    //Game is restarting so
+    Current_GameState.gameDone = false;
+
+    //No balls in the beginning
+    Current_GameState.numberOfBalls = 0;
+
+
+    //NO NOT CHANGE OVERALL SCORES! That stays alive between games
+    //NO change player
+
+    //Reset player positions
+    Current_GameState.players[0].currentCenter = PADDLE_X_CENTER;
+    Current_GameState.players[1].currentCenter = PADDLE_X_CENTER;
+
+    //No need to change winner bool
+
+    //Clear the board
+    LCD_Clear(LCD_BLACK);
+
+    //Draw the board
+    //Draw the edges
+    LCD_DrawRectangle(0, ARENA_MIN_X, 0, ARENA_MAX_Y, LCD_WHITE);
+    LCD_DrawRectangle(ARENA_MAX_X, MAX_SCREEN_X, 0, ARENA_MAX_Y, LCD_WHITE);
+
+    //Draw the scores
+    //Need char array
+    char Host_Score[2];
+    char Client_Score[2];
+    sprintf(Host_Score, "Host: %d", Current_GameState.overallScores[0]);
+    sprintf(Client_Score, "Client: %d", Current_GameState.overallScores[1]);
+
+    //For some reason char is uint8_t here
+    LCD_Text(0, 10, (uint8_t *)Host_Score, LCD_RED);
+    LCD_Text(0, 30, (uint8_t *)Client_Score, LCD_BLUE);
+
+}
 
 /*********************************************** Host Threads *********************************************************************/
 /*
@@ -378,6 +460,7 @@ void CreateGame(){
     _i32 UDP_retVal = -4;
 
     //Get specific player info which is struct sent from client to host
+    //In this case we are waiting for the ip address from the client
     while(UDP_retVal < 0){
         //this came out nasty
 //        UDP_retVal = ReceiveData(&(Current_GameState.player.IP_address), 4);  //Get client info
@@ -387,6 +470,7 @@ void CreateGame(){
     }
 
     //At this point client can be ACK
+    //Now we got the client ip addr so now we can test it
     Current_GameState.player.acknowledge = true;
     P2OUT |= RED_LED;   //Indicates ACK was made
 
@@ -484,7 +568,7 @@ void SendDataToClient(){
  * Description:
  * -Continually receive data until a return value greater than zero is returned (valid data)
  *  -Remember to release and take semaphore again so can still send data
- * -Sleep for 1 ms to avoid deadlock
+ *  -Sleep for 1 ms to avoid deadlock
  * -Update player's current center with displacement received from the client
  * -Sleep for 2ms (found experimentally/given to us)
  */
@@ -512,9 +596,11 @@ void ReceiveDataFromClient(){
 
         //Update player current center with displacement from the client
         //1 is client
-        GameState_Copy.players[1].currentCenter = GameState_Copy.player.displacement;
+        //So we already calculated the current center in the client
+        //SO no need to update the current center anymore lol
+        //GameState_Copy.players[1].currentCenter = GameState_Copy.player.displacement;
         G8RTOS_WaitSemaphore(&GameState_Semaphore);
-        Current_GameState = GameState_Copy;
+        Current_GameState.player = GameState_Copy.player;
         G8RTOS_SignalSemaphore(&GameState_Semaphore);
 
         //Sleeeeeeeeeeeeeeeeeeeeeeeeeep
@@ -578,24 +664,23 @@ void ReadJoystickHost(){
 
         //Calculate displacement for ADC
         //BEcause joystick is weird, -values actually go right (positive x)
-        GameState_Copy.player.displacement = x_coord/2000;
+        //I dont think we are supposed to edit the displacement because it is from client...
 
         //Now sleep
         sleep(10);  //Given
 
         //Add displacement to host
-        GameState_Copy.players[0].position += GameState_Copy.player.displacement;
 
         //No adjust current center?
         //Nvm we do need it because this isnt the client one...
-        if(GameState_Copy.players[0].currentCenter + GameState_Copy.player.displacement > HORIZ_CENTER_MAX_PL){
+        if(GameState_Copy.players[0].currentCenter + x_coord/2000 > HORIZ_CENTER_MAX_PL){
             GameState_Copy.players[0].currentCenter = HORIZ_CENTER_MAX_PL;
         }
-        else if(GameState_Copy.players[0].currentCenter - GameState_Copy.player.displacement < HORIZ_CENTER_MIN_PL){
+        else if(GameState_Copy.players[0].currentCenter + x_coord/2000 < HORIZ_CENTER_MIN_PL){
             GameState_Copy.players[0].currentCenter = HORIZ_CENTER_MIN_PL;
         }
         else{
-            GameState_Copy.players[0].currentCenter += GameState_Copy.player.displacement;
+            GameState_Copy.players[0].currentCenter += x_coord/2000;
         }
 
         G8RTOS_WaitSemaphore(&GameState_Semaphore);
@@ -631,7 +716,7 @@ void MoveBall(){
     int i = 0;  //Because compiler is dumb
     int Ball_Location = -1;
     for(i = 0; i < MAX_NUM_OF_BALLS; i++){
-        if(GameState_Copy.balls[i].alive){
+        if(!(GameState_Copy.balls[i].alive)){
             Ball_Location = i;
             break;
         }
@@ -644,10 +729,27 @@ void MoveBall(){
 
     //Time to init the ball
     //No need to set alive because we wouldn't be here if it wasn't
+    //SO that was a lie lol
+    GameState_Copy.balls[Ball_Location].alive = true;
     GameState_Copy.balls[Ball_Location].color = LCD_WHITE;
-    //Use system time from 0 to 128 to give a random position
-    GameState_Copy.balls[Ball_Location].currentCenterX = SystemTime & 0x3F;
+    //Use system time from 0 to 255 to give a random position
+    GameState_Copy.balls[Ball_Location].currentCenterX = SystemTime & 0xFF;
+
+    if(GameState_Copy.balls[Ball_Location].currentCenterX < HORIZ_CENTER_MIN_BALL){
+        GameState_Copy.balls[Ball_Location].currentCenterX = HORIZ_CENTER_MIN_BALL;
+    }
+    else if(GameState_Copy.balls[Ball_Location].currentCenterX > HORIZ_CENTER_MAX_BALL){
+        GameState_Copy.balls[Ball_Location].currentCenterX = HORIZ_CENTER_MAX_BALL;
+    }
+
     GameState_Copy.balls[Ball_Location].currentCenterY = SystemTime & 0x3F;
+
+    if(GameState_Copy.balls[Ball_Location].currentCenterY < VERT_CENTER_MIN_BALL){
+        GameState_Copy.balls[Ball_Location].currentCenterY = VERT_CENTER_MIN_BALL;
+    }
+    else if(GameState_Copy.balls[Ball_Location].currentCenterY > VERT_CENTER_MAX_BALL){
+        GameState_Copy.balls[Ball_Location].currentCenterY = VERT_CENTER_MAX_BALL;
+    }
 
     //Gotta make variables for the velocity
     //Basically make sure it isn't 7 lol
@@ -912,6 +1014,7 @@ void EndOfGameHost(){
     InitBoardState();
 
     //Now we can send the real thing
+    //This is the notification to client
     SendData((_u8*)&(Current_GameState), Current_GameState.player.IP_address, sizeof(Current_GameState));
 
     //Add all threads
@@ -925,6 +1028,306 @@ void EndOfGameHost(){
     G8RTOS_AddThread(&IdleThread, 255, "Idle");
 
     //Commit sudoku
+    G8RTOS_KillSelf();
+}
+
+/*********************************************** Client Threads *********************************************************************/
+/*
+ * Thread for client to join game
+ *
+ * Description:
+ * -Only thread to run after launching OS
+ * -Set initial SpecificPlayerInfo_t struct attributes
+ *  -Use getLocalP() for ip addr
+ * -Send player info to host
+ * -Wait for server response
+ * -If join game, ack join using LED
+ * -Init board state, semaphores, add threads:
+ *  -ReadJoystickClient, SendDataTOHost, ReceiveDataFromHost
+ *  -DrawObjects, MoveLEDs, IDLE
+ * -Kill Self
+ */
+void JoinGame(){
+    //No need to init the players so go straight to setting the role
+    //Set player role as host
+    initCC3100(Client);
+
+    //Need to set initial specific player attributes tho!
+    Current_GameState.player.IP_address = getLocalIP();
+    //Every other attribute isn't needed but set false just in case
+    Current_GameState.player.acknowledge = false;
+    Current_GameState.player.joined = false;
+    Current_GameState.player.ready = false;
+
+    _i32 UDP_retVal = -4;
+
+    //Lets send the IP addr to the host
+    SendData( (_u8*)&(Current_GameState.player),
+              HOST_IP_ADDR,
+              sizeof(Current_GameState.player));
+
+    //Now let's wait for ack
+    while(UDP_retVal < 0 || !(Current_GameState.player.acknowledge)){
+        UDP_retVal = ReceiveData( (_u8*)&(Current_GameState.player),
+                                  sizeof(Current_GameState.player));
+    }
+
+    //Now lets show we got it!
+    P2OUT |= RED_LED;
+
+    //Now we gotta tell the device we are ready to join
+    Current_GameState.player.ready = true;
+    SendData( (_u8*)&(Current_GameState.player),
+              HOST_IP_ADDR,
+              sizeof(Current_GameState.player));
+
+    //Now lets wait for a response telling us we have joined
+    while(UDP_retVal < 0 || !(Current_GameState.player.joined)){
+        UDP_retVal = ReceiveData( (_u8*)&(Current_GameState.player),
+                                  sizeof(Current_GameState.player));
+    }
+
+    //Lets show that we know we joined!
+    P2OUT |= BLUE_LED;
+
+    //Now lets get our general info
+    while(UDP_retVal < 0){
+        UDP_retVal = ReceiveData( (_u8*)&(Current_GameState.players[1]),
+                                  sizeof(Current_GameState.players[1]));
+    }
+
+    //Now init the board
+    InitBoardState();
+
+    //Now init all the semaphores we need
+    G8RTOS_InitSemaphore(&I2C_Semaphore, 1);
+    G8RTOS_InitSemaphore(&LCD_Semaphore, 1);
+    G8RTOS_InitSemaphore(&GameState_Semaphore, 1);
+    G8RTOS_InitSemaphore(&CC3100_WIFI_Semaphore, 1);
+    G8RTOS_InitSemaphore(&Client_Player_Semaphore, 1);
+
+    //Now add all the threads
+    G8RTOS_AddThread(&ReadJoystickClient, 250, "ReadJoyStkClient");
+    G8RTOS_AddThread(&SendDataToHost, 250, "SendData2Host");
+    G8RTOS_AddThread(&ReceiveDataFromHost, 250, "ReceiveDataFromHost");
+    G8RTOS_AddThread(&DrawObjects, 250, "DrawObjects");
+    G8RTOS_AddThread(&MoveLEDs, 254, "MoveLEDs");   //Lower priority
+    G8RTOS_AddThread(&IdleThread, 255, "Idle");
+
+    //Sudoku
+    G8RTOS_KillSelf();
+}
+
+/*
+ * Thread that receives game state packets from host
+ *
+ * Description:
+ * -Continually receive data until return value greater than 0 is returned
+ *  -Remember to release and take semaphore again so can send data
+ *  -Sleep for 1 ms to avoid deadlock
+ * -Empty received packet
+ * -If game done, add endofgameclient thread with highest priority
+ * -Sleep 5 ms
+ */
+void ReceiveDataFromHost(){
+    /*
+     * *Recommended
+     * Used to store the current game state
+     *
+     * Allows for using the game state while not holding the game state semaphore
+     */
+    GameState_t GameState_Copy;
+    while(1){
+        G8RTOS_WaitSemaphore(&GameState_Semaphore);
+        GameState_Copy = Current_GameState;
+        G8RTOS_SignalSemaphore(&GameState_Semaphore);
+
+        _i32 UDP_retVal = -4;
+        while(UDP_retVal < 0){
+            G8RTOS_WaitSemaphore(&CC3100_WIFI_Semaphore);
+            UDP_retVal = ReceiveData((_u8*)&(GameState_Copy), sizeof(GameState_Copy));
+            G8RTOS_SignalSemaphore(&CC3100_WIFI_Semaphore);
+
+            //Now we sleep because the coder can't
+            sleep(1);   //Given
+        }
+
+        //Update player current center with displacement from the client
+        //1 is client
+
+        //Empty the packet (copy it boi)
+        G8RTOS_WaitSemaphore(&GameState_Semaphore);
+        Current_GameState = GameState_Copy;
+        G8RTOS_SignalSemaphore(&GameState_Semaphore);
+
+        if(GameState_Copy.gameDone){
+            G8RTOS_AddThread(EndOfGameClient, 1, "EndOfGameClient");
+        }
+
+        //Sleeeeeeeeeeeeeeeeeeeeeeeeeep
+        sleep(5);   //Given
+    }
+}
+
+/*
+ * Thread that sends UDP packets to host
+ *
+ * Description:
+ * -Send player info
+ * -Sleep 2 ms
+ */
+void SendDataToHost(){
+    /*
+     * *Recommended
+     * Used to store the current game state
+     *
+     * Allows for using the game state while not holding the game state semaphore
+     */
+    GameState_t GameState_Copy;
+    while(1){
+        G8RTOS_WaitSemaphore(&GameState_Semaphore);
+        GameState_Copy = Current_GameState;
+        G8RTOS_SignalSemaphore(&GameState_Semaphore);
+
+        //There isn't anything to fill out
+        //Send packet
+        G8RTOS_WaitSemaphore(&CC3100_WIFI_Semaphore);
+        SendData((_u8*)&GameState_Copy, HOST_IP_ADDR, sizeof(GameState_Copy));
+        G8RTOS_SignalSemaphore(&CC3100_WIFI_Semaphore);
+
+        //No need for client
+//        //Check if game is done
+//        if(GameState_Copy.gameDone){
+//            //Add end of game host thread with highest priority
+//            G8RTOS_AddThread(&EndOfGameHost, 1, "EndOfGameHost");
+//        }
+
+        //We sleep now (well not in real life unfortunately)
+        sleep(2);   //Given
+    }
+}
+
+/*
+ * Thread to read client's joystick
+ *
+ * Description:
+ * -Read Joytick and add offset
+ * -Add displacement to self accordingly
+ * -Sleep 10ms
+ */
+void ReadJoystickClient(){
+    //Dare Dare Yaze
+    int16_t x_coord;
+        int16_t y_coord;
+
+        /*
+         * *Recommended
+         * Used to store the current game state
+         *
+         * Allows for using the game state while not holding the game state semaphore
+         */
+        GameState_t GameState_Copy;
+        while(1){
+            G8RTOS_WaitSemaphore(&GameState_Semaphore);
+            GameState_Copy = Current_GameState;
+            G8RTOS_SignalSemaphore(&GameState_Semaphore);
+
+            GetJoystickCoordinates(&x_coord, &y_coord);
+
+            //Insert bias here if there was one
+
+            //Maybe we do di
+            //Calculate displacement for ADC
+            //BEcause joystick is weird, -values actually go right (positive x)
+            GameState_Copy.player.displacement = x_coord/2000;
+
+            //No adjust current center?
+            //Actually i think we need this anyways
+            //Nvm its too late now lol
+            if(GameState_Copy.players[1].currentCenter + GameState_Copy.player.displacement > HORIZ_CENTER_MAX_PL){
+                GameState_Copy.players[1].currentCenter = HORIZ_CENTER_MAX_PL;
+            }
+            else if(GameState_Copy.players[1].currentCenter + GameState_Copy.player.displacement < HORIZ_CENTER_MIN_PL){
+                GameState_Copy.players[1].currentCenter = HORIZ_CENTER_MIN_PL;
+            }
+            else{
+                GameState_Copy.players[1].currentCenter += GameState_Copy.player.displacement;
+            }
+
+
+            G8RTOS_WaitSemaphore(&GameState_Semaphore);
+            Current_GameState = GameState_Copy;
+            G8RTOS_SignalSemaphore(&GameState_Semaphore);
+
+            sleep(10);  //Given;
+        }
+
+        //It doesn't tell us to add the displacement to the bottom player so..
+}
+
+/*
+ * End of game for the client
+ *
+ * Description:
+ * -Wait for all semaphores to be released
+ * -Kill all other threads
+ * -Re-init semaphores
+ * -Clear screen with winner's color
+ * -Wait for host to restart game
+ * -Add all threads back and restart game variables
+ * -Kill self
+ */
+void EndOfGameClient(){
+    //Wait for semaphores
+    G8RTOS_WaitSemaphore(&I2C_Semaphore);
+    G8RTOS_WaitSemaphore(&LCD_Semaphore);
+    G8RTOS_WaitSemaphore(&GameState_Semaphore);
+    G8RTOS_WaitSemaphore(&CC3100_WIFI_Semaphore);
+    G8RTOS_WaitSemaphore(&Client_Player_Semaphore);
+
+    //Kill all other threads
+    G8RTOS_KillAllOtherThreads();
+
+    //Re-init semaphores
+    G8RTOS_InitSemaphore(&I2C_Semaphore, 1);
+    G8RTOS_InitSemaphore(&LCD_Semaphore, 1);
+    G8RTOS_InitSemaphore(&GameState_Semaphore, 1);
+    G8RTOS_InitSemaphore(&CC3100_WIFI_Semaphore, 1);
+    G8RTOS_InitSemaphore(&Client_Player_Semaphore, 1);
+
+
+    //Clear screen with winner's color
+    if(Current_GameState.winner){
+        //Client won
+        LCD_Clear(LCD_RED);
+    }
+    else{
+        //Host won
+        LCD_Clear(LCD_BLUE);
+    }
+
+    //Wait for host to restart game
+    //We know it occurs because we get the real game state from host after inits it
+    _i32 UDP_retVal = -4;
+    LCD_Text(0, 120, "WAITING FOR HOST BUTTON PRESS TO START NEW GAME", LCD_WHITE);
+    while(UDP_retVal < 0){
+        //No need for semaphores
+        UDP_retVal = ReceiveData((_u8*)&(Current_GameState), sizeof(Current_GameState));
+    }
+
+    InitBoardState();   //We gotta clear the board still
+
+
+
+    //Adds all the CLIENT threads back
+    G8RTOS_AddThread(&ReadJoystickClient, 250, "ReadJoyStkClient");
+    G8RTOS_AddThread(&SendDataToHost, 250, "SendData2Host");
+    G8RTOS_AddThread(&ReceiveDataFromHost, 250, "ReceiveDataFromHost");
+    G8RTOS_AddThread(&DrawObjects, 250, "DrawObjects");
+    G8RTOS_AddThread(&MoveLEDs, 254, "MoveLEDs");   //Lower priority
+    G8RTOS_AddThread(&IdleThread, 255, "Idle");
+
+    //Kill self :(
     G8RTOS_KillSelf();
 }
 
