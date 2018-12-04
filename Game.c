@@ -735,6 +735,7 @@ void MoveBall(){
     //Use system time from 0 to 255 to give a random position
     GameState_Copy.balls[Ball_Location].currentCenterX = SystemTime & 0xFF;
 
+    //Gotta make sure we don't go past the edge limitations
     if(GameState_Copy.balls[Ball_Location].currentCenterX < HORIZ_CENTER_MIN_BALL){
         GameState_Copy.balls[Ball_Location].currentCenterX = HORIZ_CENTER_MIN_BALL;
     }
@@ -744,6 +745,7 @@ void MoveBall(){
 
     GameState_Copy.balls[Ball_Location].currentCenterY = SystemTime & 0x3F;
 
+    //Same tbh
     if(GameState_Copy.balls[Ball_Location].currentCenterY < VERT_CENTER_MIN_BALL){
         GameState_Copy.balls[Ball_Location].currentCenterY = VERT_CENTER_MIN_BALL;
     }
