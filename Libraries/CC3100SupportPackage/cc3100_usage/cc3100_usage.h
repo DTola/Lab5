@@ -34,14 +34,15 @@ typedef enum
 /* IP addressed of server side socket.
  * Should be in long format, E.g: 0xc0a8010a == 192.168.1.10
  */
-#define HOST_IP_ADDR           0xC0A80102               // IP address of server to connect to
+//#define HOST_IP_ADDR           0xC0A80102               // IP address of server to connect to
+#define HOST_IP_ADDR           SL_IPV4_VAL(192,168,1,3)
 #define PORT_NUM               5001                     // Port number to be used
 #define NO_OF_PACKETS          1                        // Number of packets to send out
 
 /*
  * Static IP address for host
  */
-#define CONFIG_IP       SL_IPV4_VAL(192,168,1,2)       /* Static IP to be configured */
+#define CONFIG_IP       SL_IPV4_VAL(192,168,1,3)       /* Static IP to be configured */
 #define AP_MASK         SL_IPV4_VAL(255,255,255,0)      /* Subnet Mask for the station */
 #define AP_GATEWAY      SL_IPV4_VAL(192,168,1,1)        /* Default Gateway address */
 #define AP_DNS          SL_IPV4_VAL(0,0,0,0)            /* DNS Server Address */

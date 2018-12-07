@@ -309,12 +309,16 @@ sched_ErrCode_t G8RTOS_AddThread(void (*threadToAdd)(void), uint8_t priority, ch
         bool lowestPriority = true;
         int j = 0;
         for(j = 0; j < NumberOfThreads; j++){
-            if(priority >= tempNextThread->priority){    //If higher priority, insert it
+            if(priority <= tempNextThread->priority){    //If higher priority, insert it
                 newThread->nextTCB = tempNextThread;
                 newThread->preTCB = tempNextThread->preTCB;
+                tempNextThread->preTCB->nextTCB = newThread;
+                tempNextThread->preTCB = newThread;
                 lowestPriority = false;
                 break;
             }
+
+            tempNextThread = &(threadControlBlocks[j]);
         }
 
         //Insert at end

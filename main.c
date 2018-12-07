@@ -12,11 +12,17 @@
 /**
  * main.c
  */
-void main(void)
-{
+void main(void){
 	WDT_A->CTL = WDT_A_CTL_PW | WDT_A_CTL_HOLD;		// stop watchdog timer
 
 	G8RTOS_Init();  //Inits everything for use
+
+//    int16_t x_coord;
+//    int16_t y_coord;
+//
+//    while(1){
+//        GetJoystickCoordinates(&x_coord, &y_coord);
+//    }
 
 //	initCC3100();
 
@@ -28,7 +34,7 @@ void main(void)
 //    G8RTOS_InitSemaphore(&Client_Player_Semaphore, 1);
 
     LCD_Clear(LCD_BLACK);
-	LCD_Text(0, 120, "Press Button 1 for HOST or Button 2 for CLIENT", LCD_WHITE);
+	LCD_Text(0, 120, "Press Button 0 for HOST or Button 1 for CLIENT", LCD_WHITE);
 
 	playerType Type_Choice = GetPlayerRole();
 
@@ -43,6 +49,7 @@ void main(void)
 	    G8RTOS_AddThread(&JoinGame, 225, "JoinGame");
 	}
 
+	P2DIR = BIT0 | BIT1 | BIT2; //sets direction of on board MSP432 LEDs2
 	G8RTOS_Launch();
 
 //	G8RTOS_Launch();    //Starts G8RTOS
