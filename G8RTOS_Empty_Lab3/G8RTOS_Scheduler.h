@@ -86,6 +86,8 @@ sched_ErrCode_t G8RTOS_KillSelf();
 
 sched_ErrCode_t G8RTOS_KillAllOtherThreads();
 
+void killBalls();
+
 /*********************************************** Public Functions *********************************************************************/
 
 #endif /* G8RTOS_SCHEDULER_H_ */

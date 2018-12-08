@@ -17,6 +17,7 @@
 #include "G8RTOS_CriticalSection.h"
 #include "Game.h"
 #include "G8RTOS_Scheduler.h"
+#include "G8RTOS_Structures.h"
 
 /*
  * Looking from the UF board
@@ -41,7 +42,7 @@ GameState_t Current_GameState;
  * Position 0: Host
  * Position 1: Client
  */
-//Don't use volatile for this or get incompatible warnings
+//Don't use volatile for this or get incompatible ````````````````````````````````````````````````````````````````````````````````````````````````warnings
 PrevPlayer_t Prev_Player_Positions[NUM_OF_PLAYERS_PLAYING];
 PrevBall_t Prev_Ball_Positions[MAX_NUM_OF_BALLS];
 
@@ -52,7 +53,7 @@ uint8_t draw_priority = 250;
 uint8_t moveLEDs_priority = 254;
 uint8_t idle_priority = 255;
 uint8_t genBall_priority = 250;
-
+uint8_t moveBall_priority = 250;
 
 
 /*********************************************** Semaphores *********************************************************************/
@@ -107,36 +108,40 @@ void DrawObjects(){
 //    GameState_t GameState_Copy;
 
     while(1){
-//        G8RTOS_WaitSemaphore(&GameState_Semaphore);
-//        GameState_Copy = Current_GameState;
-//        G8RTOS_SignalSemaphore(&GameState_Semaphore);
 
         //Updating ball positions
         for(i = 0; i < MAX_NUM_OF_BALLS; i++){
             //Make sure to only update currently (not previous) alive balls
             if(Current_GameState.balls[i].alive){
-/////////////////////////////////////////////////////////////// CHECK OR DELETE THIS////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//                //Use geometry of shapes to detect collision
-//                //Previous balls are used to erase (time t-l)
-//                //GameState balls are used to create the new ball ("movement") (time t_
-//
-//                /*
-//                 * Check if ball safe from hitting top or bottom
-//                 * D2 = Dimension of ball from center to edge
-//                 *
-//                 * Check if edge hits future edge
-//                 */
-//                if( ((Prev_Ball_Positions[i].CenterY + BALL_SIZE_D2) < VERT_CENTER_MAX_BALL - BALL_SIZE_D2)
-//                        && ((Prev_Ball_Positions[i].CenterY - BALL_SIZE_D2) > VERT_CENTER_MIN_BALL) ){
-//
-//                }
-
+                LCD_DrawRectangle(Current_GameState.balls[i].currentCenterX - BALL_SIZE_D2,
+                                  Current_GameState.balls[i].currentCenterX + BALL_SIZE_D2,
+                                  Current_GameState.balls[i].currentCenterY - BALL_SIZE_D2,
+                                  Current_GameState.balls[i].currentCenterY + BALL_SIZE_D2,
+                                  LCD_BLACK);
                 UpdateBallOnScreen(&(Prev_Ball_Positions[i]), &(Current_GameState.balls[i]), Current_GameState.balls[i].color);
 
+            }
+            else{
+                //Clears any dead ballsxv
+                LCD_DrawRectangle(Current_GameState.balls[i].currentCenterX - BALL_SIZE_D2,
+                                  Current_GameState.balls[i].currentCenterX + BALL_SIZE_D2,
+                                  Current_GameState.balls[i].currentCenterY - BALL_SIZE_D2,
+                                  Current_GameState.balls[i].currentCenterY + BALL_SIZE_D2,
+                                  LCD_BLACK);
             }
         }
 
         //Host
+//        LCD_DrawRectangle(Current_GameState.players[0].currentCenter - PADDLE_LEN_D2,
+//                          Current_GameState.players[0].currentCenter + PADDLE_LEN_D2,
+//                          TOP_PADDLE_EDGE - PADDLE_WID,
+//                          TOP_PADDLE_EDGE,
+//                          LCD_BLACK);
+//        LCD_DrawRectangle(Current_GameState.players[1].currentCenter - PADDLE_LEN_D2,
+//                          Current_GameState.players[1].currentCenter + PADDLE_LEN_D2,
+//                          TOP_PADDLE_EDGE - PADDLE_WID,
+//                          TOP_PADDLE_EDGE,
+//                          LCD_BLACK);
         UpdatePlayerOnScreen(&(Prev_Player_Positions[0]), &(Current_GameState.players[0]));
         //Client
         UpdatePlayerOnScreen(&(Prev_Player_Positions[1]), &(Current_GameState.players[1]));
@@ -232,11 +237,11 @@ playerType GetPlayerRole(){
  */
 void DrawPlayer(GeneralPlayerInfo_t * player){
     if(player->position == TOP){
-        LCD_DrawRectangle(player->currentCenter - PADDLE_LEN_D2,
-                          player->currentCenter + PADDLE_LEN_D2,
-                          TOP_PADDLE_EDGE - PADDLE_WID,
-                          TOP_PADDLE_EDGE,
-                          player->color);
+            LCD_DrawRectangle(player->currentCenter - PADDLE_LEN_D2,
+                              player->currentCenter + PADDLE_LEN_D2,
+                              TOP_PADDLE_EDGE - PADDLE_WID,
+                              TOP_PADDLE_EDGE,
+                              player->color);
     }
     else{
         LCD_DrawRectangle(player->currentCenter - PADDLE_LEN_D2,
@@ -265,7 +270,7 @@ void UpdatePlayerOnScreen(PrevPlayer_t * prevPlayerIn, GeneralPlayerInfo_t * out
         if(Paddle_Difference > 0){
             //0  2  4  6       Prev Center at 2. Current at 4
             //[  |  ]
-            //   [  |  ]
+            //   [  |  ],,,,,,,,,,,
             LCD_DrawRectangle(prevPlayerIn->Center - PADDLE_LEN_D2,
                               outPlayer->currentCenter - PADDLE_LEN_D2,
                               TOP_PADDLE_EDGE - PADDLE_WID,
@@ -368,11 +373,12 @@ void UpdateBallOnScreen(PrevBall_t * previousBall, Ball_t * currentBall, uint16_
     previousBall->CenterY = currentBall->currentCenterY;
 }
 
-//Updates LED array without creating a new thread
+//Updates LED array without creating a] new thread
 void MoveLEDs_noThread(){
-    uint16_t LED_DATA_SET[9] = {0x00, 0x01, 0x03, 0x07, 0x0F, 0x1F, 0x3F, 0x7F, 0xFF};
-    LP3943_LedModeSet(RED, LED_DATA_SET[Current_GameState.overallScores[0]]);
-    LP3943_LedModeSet(BLUE, LED_DATA_SET[Current_GameState.overallScores[1]]);
+    uint16_t LED_DATA_SET_Host[9] = {0x00, 0x01, 0x03, 0x07, 0x0F, 0x1F, 0x3F, 0x7F, 0xFF};
+    uint16_t LED_DATA_SET_Client[9] = {0x0000, 0x8000, 0xC000, 0xE000, 0xF000, 0xF800, 0xFC00, 0xFE00, 0xFF00};
+    LP3943_LedModeSet(RED, LED_DATA_SET_Host[Current_GameState.LEDScores[0]]);
+    LP3943_LedModeSet(BLUE, LED_DATA_SET_Client[Current_GameState.LEDScores[1]]);
 }
 
 /*
@@ -512,8 +518,8 @@ void CreateGame(){
 //    //We should send the general player state information to the client
 //    //client is responsible for translation
 //    //1 is client
-//    SendData((_u8*)&(Current_GameState.players[1]),
-//             Current_GameState.player.IP_address,
+//    SendData((_u8*)&(Current_GameState.p8txlayers[1]),
+//             Current_GameStat0/e.player.IP_address,
 //             sizeof(Current_GameState.players[1]));
 
     InitBoardState();
@@ -533,8 +539,10 @@ void CreateGame(){
 //    G8RTOS_AddThread(&MoveLEDs, moveLEDs_priority, "MoveLEDs");   //Lower priority
     G8RTOS_AddThread(&IdleThread, idle_priority, "Idle");
 
+
+    G8RTOS_Launch();
     //Now we commit soduku
-    G8RTOS_KillSelf();
+//    G8RTOS_KillSelf();
 }
 
 /*
@@ -556,9 +564,6 @@ void SendDataToClient(){
      */
 //    GameState_t GameState_Copy;
     while(1){
-//        G8RTOS_WaitSemaphore(&GameState_Semaphore);
-//        GameState_Copy = Current_GameState;
-//        G8RTOS_SignalSemaphore(&GameState_Semaphore);
 
         //There isn't anything to fill out
         //Send packet
@@ -597,9 +602,6 @@ void ReceiveDataFromClient(){
      */
 //    GameState_t GameState_Copy;
     while(1){
-//        G8RTOS_WaitSemaphore(&GameState_Semaphore);
-//        GameState_Copy = Current_GameState;
-//        G8RTOS_SignalSemaphore(&GameState_Semaphore);
         _i32 UDP_retVal = -4;
         while(UDP_retVal < 0){
             G8RTOS_WaitSemaphore(&CC3100_WIFI_Semaphore);
@@ -615,9 +617,6 @@ void ReceiveDataFromClient(){
         //So we already calculated the current center in the client
         //SO no need to update the current center anymore lol
         //GameState_Copy.players[1].currentCenter = GameState_Copy.player.displacement;
-//        G8RTOS_WaitSemaphore(&GameState_Semaphore);
-//        Current_GameState.player = GameState_Copy.player;
-//        G8RTOS_SignalSemaphore(&GameState_Semaphore);
 
         Current_GameState.players[1].currentCenter -= Current_GameState.player.displacement;
 
@@ -629,21 +628,21 @@ void ReceiveDataFromClient(){
         }
 
         //Sleeeeeeeeeeeeeeeeeeeeeeeeeep
-        sleep(2);   //Given
+        sleep(2);   //Given.w
     }
 }
 
 /*
  * Generate Ball thread
  *
- * Description:
+ * Descriptiocn:
  * -Add another MoveBall thread if number of balls is less than max
  * -Sleeps proportional to the number of balls currently in play
  */
 void GenerateBall(){
     while(1){
         if(Current_GameState.numberOfBalls < MAX_NUM_OF_BALLS){
-            G8RTOS_AddThread(&MoveBall, 253, "MoveBall");
+            G8RTOS_AddThread(&MoveBall, moveBall_priority, "MoveBall");
 
             //Just in case
 //            G8RTOS_WaitSemaphore(&GameState_Semaphore);
@@ -652,7 +651,8 @@ void GenerateBall(){
         }
 
         //If there are 8 balls then it sleeps for one second (125 * 8 = 1000ms)
-        sleep(Current_GameState.numberOfBalls * 125);
+//        sleep(Current_GameState.numberOfBalls * 125);
+        sleep(Current_GameState.numberOfBalls * 1000);
     }
 }
 
@@ -679,9 +679,6 @@ void ReadJoystickHost(){
      */
 //    GameState_t GameState_Copy;
     while(1){
-//        G8RTOS_WaitSemaphore(&GameState_Semaphore);
-//        GameState_Copy = Current_GameState;
-//        G8RTOS_SignalSemaphore(&GameState_Semaphore);
 
         GetJoystickCoordinates(&x_coord, &y_coord);
 
@@ -721,9 +718,6 @@ void ReadJoystickHost(){
 
         G8RTOS_SignalSemaphore(&GameState_Semaphore);
 
-//        G8RTOS_WaitSemaphore(&GameState_Semaphore);
-//        Current_GameState = GameState_Copy;
-//        G8RTOS_SignalSemaphore(&GameState_Semaphore);
         sleep(10);  //Given
     }
 }
@@ -747,15 +741,11 @@ void MoveBall(){
      *
      * Allows for using the game state while not holding the game state semaphore
      */
-    GameState_t GameState_Copy;
-    G8RTOS_WaitSemaphore(&GameState_Semaphore);
-    GameState_Copy = Current_GameState;
-    G8RTOS_SignalSemaphore(&GameState_Semaphore);
 
     int i = 0;  //Because compiler is dumb
     int Ball_Location = -1;
     for(i = 0; i < MAX_NUM_OF_BALLS; i++){
-        if(!(GameState_Copy.balls[i].alive)){
+        if(!(Current_GameState.balls[i].alive)){
             Ball_Location = i;
             break;
         }
@@ -767,47 +757,53 @@ void MoveBall(){
     }
 
     //Time to init the ball
-    //No need to set alive because we wouldn't be here if it wasn't
+    //No need to set alivep because we wouldn't be here if it wasn't
     //SO that was a lie lol
-    GameState_Copy.balls[Ball_Location].alive = true;
-    GameState_Copy.balls[Ball_Location].color = LCD_WHITE;
+    Current_GameState.balls[Ball_Location].alive = true;
+    Current_GameState.balls[Ball_Location].color = LCD_WHITE;
     //Use system time from 0 to 255 to give a random position
-    GameState_Copy.balls[Ball_Location].currentCenterX = SystemTime & 0xFF;
+    Current_GameState.balls[Ball_Location].currentCenterX = SystemTime & 0xFF;
 
     //Gotta make sure we don't go past the edge limitations
-    if(GameState_Copy.balls[Ball_Location].currentCenterX < HORIZ_CENTER_MIN_BALL){
-        GameState_Copy.balls[Ball_Location].currentCenterX = HORIZ_CENTER_MIN_BALL;
+    if(Current_GameState.balls[Ball_Location].currentCenterX < HORIZ_CENTER_MIN_BALL){
+        Current_GameState.balls[Ball_Location].currentCenterX = HORIZ_CENTER_MIN_BALL + 10;
     }
-    else if(GameState_Copy.balls[Ball_Location].currentCenterX > HORIZ_CENTER_MAX_BALL){
-        GameState_Copy.balls[Ball_Location].currentCenterX = HORIZ_CENTER_MAX_BALL;
+    else if(Current_GameState.balls[Ball_Location].currentCenterX > HORIZ_CENTER_MAX_BALL){
+        Current_GameState.balls[Ball_Location].currentCenterX = HORIZ_CENTER_MAX_BALL - 10;
     }
 
-    GameState_Copy.balls[Ball_Location].currentCenterY = SystemTime & 0x3F;
+    Current_GameState.balls[Ball_Location].currentCenterY = SystemTime & 0x3F;
 
     //Same tbh
-    if(GameState_Copy.balls[Ball_Location].currentCenterY < VERT_CENTER_MIN_BALL){
-        GameState_Copy.balls[Ball_Location].currentCenterY = VERT_CENTER_MIN_BALL;
+    if(Current_GameState.balls[Ball_Location].currentCenterY < VERT_CENTER_MIN_BALL){
+        Current_GameState.balls[Ball_Location].currentCenterY = VERT_CENTER_MIN_BALL + 10;
     }
-    else if(GameState_Copy.balls[Ball_Location].currentCenterY > VERT_CENTER_MAX_BALL){
-        GameState_Copy.balls[Ball_Location].currentCenterY = VERT_CENTER_MAX_BALL;
+    else if(Current_GameState.balls[Ball_Location].currentCenterY > VERT_CENTER_MAX_BALL){
+        Current_GameState.balls[Ball_Location].currentCenterY = VERT_CENTER_MAX_BALL - 10;
     }
 
-    //Gotta make variables for the velocity
-    //Basically make sure it isn't 7 lol
-    int16_t Velocity_X = SystemTime & 0x3;
+    //Gotta make variablkesv for the velocity
+    //Basically make sure it isn't 7 or 0 lol
+    int Velocity_X = SystemTime & 0x3;
     if(Velocity_X > MAX_BALL_SPEED){
-        Velocity_X--;
+        Velocity_X = Velocity_X - 1;
     }
-    int16_t Velocity_Y = SystemTime & 0x3;
+    else if(Velocity_X <= 0){
+        Velocity_X = 1;
+    }
+    int Velocity_Y = SystemTime & 0x3;
     if(Velocity_Y > MAX_BALL_SPEED){
-        Velocity_Y--;
+        Velocity_Y = Velocity_Y - 1;
+    }
+    else if(Velocity_Y <= 0){
+        Velocity_Y = 1;
     }
 
     //Update the game state with the new ball properties
-    Current_GameState.balls[Ball_Location].alive = GameState_Copy.balls[Ball_Location].alive;
-    Current_GameState.balls[Ball_Location].color = GameState_Copy.balls[Ball_Location].color;
-    Current_GameState.balls[Ball_Location].currentCenterX = GameState_Copy.balls[Ball_Location].currentCenterX;
-    Current_GameState.balls[Ball_Location].currentCenterY = GameState_Copy.balls[Ball_Location].currentCenterY;
+//    Current_GameState.balls[Ball_Location].alive = GameState_Copy.balls[Ball_Location].alive;
+//    Current_GameState.balls[Ball_Location].color = GameState_Copy.balls[Ball_Location].color;
+//    Current_GameState.balls[Ball_Location].currentCenterX = GameState_Copy.balls[Ball_Location].currentCenterX;
+//    Current_GameState.balls[Ball_Location].currentCenterY = GameState_Copy.balls[Ball_Location].currentCenterY;
 
     //Minkowski variables
     int32_t M_w = WIDTH_TOP_OR_BOTTOM;
@@ -818,10 +814,12 @@ void MoveBall(){
     int32_t M_dy_Client;
 
     while(1){
+        //JUst in case something went wrong9
+        while(!(Current_GameState.balls[Ball_Location].alive));
         //Get dat copy boi
-        G8RTOS_WaitSemaphore(&GameState_Semaphore);
-        GameState_Copy = Current_GameState;
-        G8RTOS_SignalSemaphore(&GameState_Semaphore);
+//        G8RTOS_WaitSemaphore(&GameState_Semaphore);
+//        GameState_Copy = Current_GameState;
+//        G8RTOS_SignalSemaphore(&GameState_Semaphore);
 
         //Used to tell if collision occurred. If so then no need to check if pass
         bool Collision_Event = false;
@@ -829,19 +827,52 @@ void MoveBall(){
         //Lets do paddle collision first
         //Host is on bottom so the paddle will have y of 240ish
         //Client is on top so paddle will have y of 0ish
-        M_dx_Host = GameState_Copy.balls[Ball_Location].currentCenterX - GameState_Copy.players[0].currentCenter;
-        M_dx_Client = GameState_Copy.balls[Ball_Location].currentCenterX - GameState_Copy.players[1].currentCenter;
+        M_dx_Host = Current_GameState.balls[Ball_Location].currentCenterX - Current_GameState.players[0].currentCenter;
+        M_dx_Client = Current_GameState.balls[Ball_Location].currentCenterX - Current_GameState.players[1].currentCenter;
 
         //Might have to add wiggle room
-        M_dy_Host = GameState_Copy.balls[Ball_Location].currentCenterY - BOTTOM_PLAYER_CENTER_Y;
-        M_dy_Client = GameState_Copy.balls[Ball_Location].currentCenterX - TOP_PLAYER_CENTER_Y;
+        M_dy_Host = Current_GameState.balls[Ball_Location].currentCenterY - BOTTOM_PLAYER_CENTER_Y;
+        M_dy_Client = Current_GameState.balls[Ball_Location].currentCenterY - TOP_PLAYER_CENTER_Y;
 
         //Lets do host collision first
+
+        bool paddle_collision = false;
+
         if(abs(M_dx_Host) <= M_w && abs(M_dy_Host) <= M_h){
-            Collision_Event = true;
+//            Collision_Event = true;
             //Collision!!!!!!!!!!!!!
             int32_t M_wy = M_w * M_dy_Host;
             int32_t M_hx = M_h * M_dx_Host;
+
+//            if(M_wy > M_hx){
+//                if(M_wy > (M_hx * -1)){
+//                    //Collision at the top
+//                    //Basically it hit the middle of the paddle so it should go up (-y)
+//                    Velocity_X = 0;
+//                    Velocity_Y = Velocity_Y * -1;
+//                }
+//                else{
+//                    //collision on the left
+//                    //Must go left
+//                    //Take abs just in case it was already going left
+//                    Velocity_X = abs(Velocity_X) * -1;
+//                    Velocity_Y = Velocity_Y * -1;
+//                }
+//            }
+//            else{
+//                if(M_wy > (M_hx * -1)){
+//                    //Collision on the right
+//                    //Must go right
+//                    Velocity_X = abs(Velocity_X);
+//                    Velocity_Y = Velocity_Y * -1;
+//                }
+//                else{
+//                    //No way to hit the bottom sooooooooooooo
+//                    //Collision on the bottom
+//                    Velocity_X = 0;
+//                    Velocity_Y = abs(Velocity_Y);
+//                }
+//            }
 
             if(M_wy > M_hx){
                 if(M_wy > (M_hx * -1)){
@@ -849,13 +880,15 @@ void MoveBall(){
                     //Basically it hit the middle of the paddle so it should go up (-y)
                     Velocity_X = 0;
                     Velocity_Y = Velocity_Y * -1;
+//                    Velocity_Y = abs(Velocity_Y);
                 }
                 else{
                     //collision on the left
                     //Must go left
                     //Take abs just in case it was already going left
-                    Velocity_X = abs(Velocity_X) * -1;
+                    Velocity_X = (abs(Velocity_X) * -1);    //-1 because sometimes it doesn't go horizontally
                     Velocity_Y = Velocity_Y * -1;
+//                    Velocity_Y = abs(Velocity_Y);
                 }
             }
             else{
@@ -864,20 +897,23 @@ void MoveBall(){
                     //Must go right
                     Velocity_X = abs(Velocity_X);
                     Velocity_Y = Velocity_Y * -1;
+//                    Velocity_Y = abs(Velocity_Y);
                 }
                 else{
                     //No way to hit the bottom sooooooooooooo
                     //Collision on the bottom
                     Velocity_X = 0;
-                    Velocity_Y = abs(Velocity_Y);
+//                    Velocity_Y = abs(Velocity_Y);
+                    Velocity_Y = Velocity_Y * -1;
                 }
             }
 
             //Update ball color
-            GameState_Copy.balls[Ball_Location].color = PLAYER_RED;
+            Current_GameState.balls[Ball_Location].color = PLAYER_RED;
+            paddle_collision = true;
         }
         else if(abs(M_dx_Client) <= M_w && abs(M_dy_Client) <= M_h){
-            Collision_Event = true;
+//            Collision_Event = true;
             //Collision!!!!!!!!!!!!!
             int32_t M_wy = M_w * M_dy_Client;
             int32_t M_hx = M_h * M_dx_Client;
@@ -894,7 +930,7 @@ void MoveBall(){
                     //collision on the left
                     //Must go left
                     //Take abs just in case it was already going left
-                    Velocity_X = abs(Velocity_X) * -1;
+                    Velocity_X = (abs(Velocity_X) * -1);    //-1 just in case
                     Velocity_Y = abs(Velocity_Y);
                 }
             }
@@ -902,7 +938,7 @@ void MoveBall(){
                 if(M_wy > (M_hx * -1)){
                     //Collision on the right
                     //This means it must go right
-                    Velocity_X = abs(Velocity_X);
+                    Velocity_X = abs(Velocity_X);   //+1 just in case
                     Velocity_Y = abs(Velocity_Y) ;
                 }
                 else{
@@ -914,23 +950,27 @@ void MoveBall(){
             }
 
             //Update ball color
-            GameState_Copy.balls[Ball_Location].color = PLAYER_BLUE;
+            Current_GameState.balls[Ball_Location].color = PLAYER_BLUE;
+            paddle_collision = true;
         }
 
         //Maybe update ball location here with one movement of velocity?
 
         //Lets check if wall was collided with
-        if(GameState_Copy.balls[Ball_Location].currentCenterX >= HORIZ_CENTER_MAX_BALL){
-            Collision_Event = true;
-            //Hit right side so now go left
-            GameState_Copy.balls[Ball_Location].currentCenterX = HORIZ_CENTER_MAX_BALL - BALL_SIZE_D2;  //To avoid re-collision
-            Velocity_X = Velocity_X * -1;
-        }
-        else if(GameState_Copy.balls[Ball_Location].currentCenterX <= HORIZ_CENTER_MIN_BALL){
-            Collision_Event = true;
-            //Hit left side so now go right
-            GameState_Copy.balls[Ball_Location].currentCenterX = HORIZ_CENTER_MAX_BALL + BALL_SIZE_D2;  //To avoid re-collision
-            Velocity_X = abs(Velocity_X);
+        if(!paddle_collision){
+            if(Current_GameState.balls[Ball_Location].currentCenterX >= HORIZ_CENTER_MAX_BALL){
+                Collision_Event = true;
+                //Hit right side so now go left
+                Current_GameState.balls[Ball_Location].currentCenterX = HORIZ_CENTER_MAX_BALL - BALL_SIZE_D2;  //To avoid re-collision
+                Velocity_X = Velocity_X * -1;
+    //            Current_GameState.balls[Ball_Location].currentCenterX += Velocity_X;
+            }
+            else if(Current_GameState.balls[Ball_Location].currentCenterX <= HORIZ_CENTER_MIN_BALL){
+                Collision_Event = true;
+                //Hit left side so `rnow go right
+                Current_GameState.balls[Ball_Location].currentCenterX = HORIZ_CENTER_MAX_BALL + BALL_SIZE_D2;  //To avoid re-collision
+                Velocity_X = abs(Velocity_X);
+            }
         }
 
 //        GameState_Copy.balls[Ball_Location].currentCenterX += Velocity_X;
@@ -938,62 +978,87 @@ void MoveBall(){
 
         //Now lets check if ball passed the boundary edge
         //Host first of course
-        //Used to notify if ball thread should be killed
+        //Used to notifuy if ball thread should be killed
         bool Kill_Ball = false;
 
         if(!Collision_Event){   //Don't wanna check if collision occurred
-            if(GameState_Copy.balls[Ball_Location].currentCenterY >= VERT_CENTER_MAX_BALL){
+            if(Current_GameState.balls[Ball_Location].currentCenterY >= VERT_CENTER_MAX_BALL){
                 //Need to kill ball thread
                 Kill_Ball = true;
                 //Set ded
-                GameState_Copy.balls[Ball_Location].alive = false;
-                //Adjust scores. In this case the client gets one point
-                GameState_Copy.LEDScores[1]++;
-                GameState_Copy.numberOfBalls--;
+                Current_GameState.balls[Ball_Location].alive = false;
+                //Adjust scores. cIn this case the client gets one point
+                if((Current_GameState.balls[Ball_Location].color != LCD_WHITE)){
+                    Current_GameState.LEDScores[1]++;
+                    MoveLEDs_noThread();
+//                    Current_GameState.numberOfBalls--;
+                }
+//                Current_GameState.LEDScores[1]++;
+//                MoveLEDs_noThread();
+                Current_GameState.numberOfBalls--;
+
+//                LCD_DrawRectangle(Current_GameState.balls[Ball_Location].currentCenterX - BALL_SIZE_D2,
+//                                  Current_GameState.balls[Ball_Location].currentCenterX + BALL_SIZE_D2,
+//                                  Current_GameState.balls[Ball_Location].currentCenterY - BALL_SIZE_D2,
+//                                  Current_GameState.balls[Ball_Location].currentCenterY + BALL_SIZE_D2,
+//                                  LCD_BLACK);
             }
-            else if(GameState_Copy.balls[Ball_Location].currentCenterY <= VERT_CENTER_MIN_BALL){  //Now we check cif pass client
+            else if(Current_GameState.balls[Ball_Location].currentCenterY <= VERT_CENTER_MIN_BALL){  //Now we check cif pass client
                 //Need to kill ball thread
                 Kill_Ball = true;
                 //Set ded
-                GameState_Copy.balls[Ball_Location].alive = false;
+                Current_GameState.balls[Ball_Location].alive = false;
                 //Adjust scores. In this case the client gets one point
-                GameState_Copy.LEDScores[0]++;
-                GameState_Copy.numberOfBalls--;
+                if((Current_GameState.balls[Ball_Location].color != LCD_WHITE)){
+                    Current_GameState.LEDScores[0]++;
+                    MoveLEDs_noThread();
+//                    Current_GameState.numberOfBalls--;
+                }
+//                Current_GameState.LEDScores[0]++;
+//                MoveLEDs_noThread();
+                Current_GameState.numberOfBalls--;
+
+//                LCD_DrawRectangle(Current_GameState.balls[Ball_Location].currentCenterX - BALL_SIZE_D2,
+//                                  Current_GameState.balls[Ball_Location].currentCenterX + BALL_SIZE_D2,
+//                                  Current_GameState.balls[Ball_Location].currentCenterY - BALL_SIZE_D2,
+//                                  Current_GameState.balls[Ball_Location].currentCenterY + BALL_SIZE_D2,
+//                                  LCD_BLACK);
             }
         }
 
         //Now we need to see if the game should end
         //Check host
-        if(GameState_Copy.LEDScores[0] >= 8){
-            GameState_Copy.overallScores[0]++;
-            GameState_Copy.gameDone = true;
-            GameState_Copy.winner = false;  //Means host won???
+        if(Current_GameState.LEDScores[0] >= 8){
+            if(Current_GameState.gameDone != true){
+                Current_GameState.overallScores[0]++;
+            }
+//            MoveLEDs_noThread();
+            Current_GameState.gameDone = true;
+            Current_GameState.winner = true;  //Means host won???
         }
-        else if(GameState_Copy.LEDScores[1] >= 8){
-            GameState_Copy.overallScores[1]++;
-            GameState_Copy.gameDone = true;
-            GameState_Copy.winner = true;
+        else if(Current_GameState.LEDScores[1] >= 8){
+            if(Current_GameState.gameDone != true){
+                Current_GameState.overallScores[1]++;
+            }
+//            MoveLEDs_noThread();
+            Current_GameState.gameDone = true;
+            Current_GameState.winner = false;
         }
 
         if(Kill_Ball){  //Need to kill self
             //Memory copy the copy into the current
-            G8RTOS_WaitSemaphore(&GameState_Semaphore);
-            Current_GameState = GameState_Copy;
-            G8RTOS_SignalSemaphore(&GameState_Semaphore);
 
             G8RTOS_KillSelf();
         }
         else{   //Else just move the ball
-            GameState_Copy.balls[Ball_Location].currentCenterX += Velocity_X;
-            GameState_Copy.balls[Ball_Location].currentCenterY += Velocity_Y;
+            Current_GameState.balls[Ball_Location].currentCenterX += Velocity_X;
+            Current_GameState.balls[Ball_Location].currentCenterY += Velocity_Y;
 
             //Memory copy the copy into the current
-            G8RTOS_WaitSemaphore(&GameState_Semaphore);
-            Current_GameState = GameState_Copy;
-            G8RTOS_SignalSemaphore(&GameState_Semaphore);
         }
 
         sleep(35);  //Recommended
+//        sleep(70);  //too long
     }
 }
 
@@ -1006,12 +1071,35 @@ void MoveBall(){
  * -Re-init all semaphores
  * -Clear screen with winner's color
  * -Print some message that waits for the host's action to start new game
- * -Create aperiodic thread that waits for host button press
+ * -Create aperiodicg thread that waits for host button press
  *  -Client will be waiting on host to start a new game
  * -Once ready, send notification to client, reinit game and obj, add all threads, kill self
  */
 void EndOfGameHost(){
     //This looks like a lot of work
+
+//    GameState_t Client_GameState = Current_GameState;
+//    Client_GameState.gameDone = false;
+
+    G8RTOS_WaitSemaphore(&CC3100_WIFI_Semaphore);
+    SendData((_u8*)&Current_GameState, Current_GameState.player.IP_address, sizeof(Current_GameState));
+    G8RTOS_SignalSemaphore(&CC3100_WIFI_Semaphore);
+
+    //Wait to make sure client got the gamedone
+//    _i32 UDP_retVal = -4;
+//    while(UDP_retVal < 0 || !(Client_GameState.gameDone)){
+//        //JUst in case the client didnt get the gamedone
+//        G8RTOS_WaitSemaphore(&CC3100_WIFI_Semaphore);
+//        SendData((_u8*)&Current_GameState, Current_GameState.player.IP_address, sizeof(Current_GameState));
+//        G8RTOS_SignalSemaphore(&CC3100_WIFI_Semaphore);
+//
+//        G8RTOS_WaitSemaphore(&CC3100_WIFI_Semaphore);
+//        UDP_retVal = ReceiveData((_u8*)&(Client_GameState), sizeof(Client_GameState));
+//        G8RTOS_SignalSemaphore(&CC3100_WIFI_Semaphore);
+//
+//        //Now we sleep because the coder can't
+//        sleep(1);   //Given
+//    }
 
     //Wait for semaphores
     G8RTOS_WaitSemaphore(&I2C_Semaphore);
@@ -1023,13 +1111,26 @@ void EndOfGameHost(){
     //Kill all other threads
     //I was tempted to call this annihilation
     G8RTOS_KillAllOtherThreads();
+//    tcb_t *searcher = &threadControlBlocks[0];
+//    int i = 0;
+//    for(i = 0; i < MAX_THREADS; i++){
+//        if(searcher != CurrentlyRunningThread){
+//            if(searcher->isAlive && searcher->threadName == "MoveBall"){
+//                G8RTOS_KillThread(searcher->threadID);
+//            }
+//        }
+//
+//        searcher = &threadControlBlocks[i];
+//    }
 
-    //Re-init all semaphores
-    G8RTOS_InitSemaphore(&I2C_Semaphore, 1);
-    G8RTOS_InitSemaphore(&LCD_Semaphore, 1);
-    G8RTOS_InitSemaphore(&GameState_Semaphore, 1);
-    G8RTOS_InitSemaphore(&CC3100_WIFI_Semaphore, 1);
-    G8RTOS_InitSemaphore(&Client_Player_Semaphore, 1);
+//    killBalls();
+
+//    //Re-init all semaphore4s
+//    G8RTOS_InitSemaphore(&I2C_Semaphore, 1);
+//    G8RTOS_InitSemaphore(&LCD_Semaphore, 1);
+//    G8RTOS_InitSemaphore(&GameState_Semaphore, 1);
+//    G8RTOS_InitSemaphore(&CC3100_WIFI_Semaphore, 1);
+//    G8RTOS_InitSemaphore(&Client_Player_Semaphore, 1);
 
     //Clear screen with winner color
     if(Current_GameState.winner){
@@ -1054,18 +1155,31 @@ void EndOfGameHost(){
     //But first we need to init the board state or else gamestate is wrong for client
     InitBoardState();
 
+        G8RTOS_InitSemaphore(&I2C_Semaphore, 1);
+        G8RTOS_InitSemaphore(&LCD_Semaphore, 1);
+        G8RTOS_InitSemaphore(&GameState_Semaphore, 1);
+        G8RTOS_InitSemaphore(&CC3100_WIFI_Semaphore, 1);
+        G8RTOS_InitSemaphore(&Client_Player_Semaphore, 1);
+
     //Now we can send the real thing
     //This is the notification to client
     SendData((_u8*)&(Current_GameState), Current_GameState.player.IP_address, sizeof(Current_GameState));
 
-    //Add all threads
+    //Add all threades
     //Now we add all the threads
+//    G8RTOS_AddThread(&GenerateBall, genBall_priority, "GenBall");
+//    G8RTOS_AddThread(&DrawObjects, draw_priority, "DrwObj");
+//    G8RTOS_AddThread(&ReadJoystickHost, joystick_priority, "ReadJoyStkHst");
+//    G8RTOS_AddThread(&SendDataToClient, sendData_priority, "SendData2Client");
+//    G8RTOS_AddThread(&ReceiveDataFromClient, receiveData_priority, "RecDataFromClient");
+////    G8RTOS_AddThread(&MoveLEDs, moveLEDs_priority, "MoveLEDs");   //Lower priority
+//    G8RTOS_AddThread(&IdleThread, idle_priority, "Idle");
     G8RTOS_AddThread(&GenerateBall, genBall_priority, "GenBall");
     G8RTOS_AddThread(&DrawObjects, draw_priority, "DrwObj");
     G8RTOS_AddThread(&ReadJoystickHost, joystick_priority, "ReadJoyStkHst");
     G8RTOS_AddThread(&SendDataToClient, sendData_priority, "SendData2Client");
     G8RTOS_AddThread(&ReceiveDataFromClient, receiveData_priority, "RecDataFromClient");
-    G8RTOS_AddThread(&MoveLEDs, moveLEDs_priority, "MoveLEDs");   //Lower priority
+//    G8RTOS_AddThread(&MoveLEDs, moveLEDs_priority, "MoveLEDs");   //Lower priority
     G8RTOS_AddThread(&IdleThread, idle_priority, "Idle");
 
     //Commit sudoku
@@ -1082,7 +1196,7 @@ void EndOfGameHost(){
  *  -Use getLocalP() for ip addr
  * -Send player info to host
  * -Wait for server response
- * -If join game, ack join using LED
+ * -If join game, ack join using LEmD
  * -Init board state, semaphores, add threads:
  *  -ReadJoystickClient, SendDataTOHost, ReceiveDataFromHost
  *  -DrawObjects, MoveLEDs, IDLE
@@ -1140,7 +1254,7 @@ void JoinGame(){
 //    //Now lets get our general info
 //    while(UDP_retVal < 0){
 //        UDP_retVal = ReceiveData( (_u8*)&(Current_GameState.players[1]),
-//                                  sizeof(Current_GameState.players[1]));
+//                                  sizeof(Current_GameStat'e.players[1]));
 //    }
 
     //Now init the board
@@ -1154,15 +1268,16 @@ void JoinGame(){
     G8RTOS_InitSemaphore(&Client_Player_Semaphore, 1);
 
     //Now add all the threads
-    G8RTOS_AddThread(&ReadJoystickClient, joystick_priority-10, "ReadJoyStkClient");
-    G8RTOS_AddThread(&SendDataToHost, sendData_priority-5, "SendData2Host");
+    G8RTOS_AddThread(&ReadJoystickClient, joystick_priority, "ReadJoyStkClient");
+    G8RTOS_AddThread(&SendDataToHost, sendData_priority, "SendData2Host");
     G8RTOS_AddThread(&ReceiveDataFromHost, receiveData_priority, "RecDataFromHost");
     G8RTOS_AddThread(&DrawObjects, draw_priority, "DrwObj");
 //    G8RTOS_AddThread(&MoveLEDs, moveLEDs_priority, "MoveLEDs");   //Lower priority
     G8RTOS_AddThread(&IdleThread, idle_priority, "Idle");
 
     //Sudoku
-    G8RTOS_KillSelf();
+    G8RTOS_Launch();
+//    G8RTOS_KillSelf();
 }
 
 /*
@@ -1185,10 +1300,6 @@ void ReceiveDataFromHost(){
      */
 //    GameState_t GameState_Copy;
     while(1){
-//        G8RTOS_WaitSemaphore(&GameState_Semaphore);
-//        GameState_Copy = Current_GameState;
-//        G8RTOS_SignalSemaphore(&GameState_Semaphore);
-
         _i32 UDP_retVal = -4;
 //        G8RTOS_WaitSemaphore(&CC3100_WIFI_Semaphore);
         while(UDP_retVal < 0){
@@ -1204,9 +1315,8 @@ void ReceiveDataFromHost(){
         //1 is client
 
         //Empty the packet (copy it boi)
-//        G8RTOS_WaitSemaphore(&GameState_Semaphore);
-//        Current_GameState = GameState_Copy;
-//        G8RTOS_SignalSemaphore(&GameState_Semaphore);
+
+        MoveLEDs_noThread();
 
         if(Current_GameState.gameDone){
             G8RTOS_AddThread(EndOfGameClient, 1, "EndOfGameClient");
@@ -1234,9 +1344,6 @@ void SendDataToHost(){
      */
 //    GameState_t GameState_Copy;
     while(1){
-//        G8RTOS_WaitSemaphore(&GameState_Semaphore);
-//        GameState_Copy = Current_GameState;
-//        G8RTOS_SignalSemaphore(&GameState_Semaphore);
 
         //There isn't anything to fill out
         //Send packet
@@ -1278,9 +1385,6 @@ void ReadJoystickClient(){
          */
 //        GameState_t Current_GameState;
         while(1){
-//            G8RTOS_WaitSemaphore(&GameState_Semaphore);
-//            GameState_Copy = Current_GameState;
-//            G8RTOS_SignalSemaphore(&GameState_Semaphore);
 
             GetJoystickCoordinates(&x_coord, &y_coord);
 
@@ -1325,9 +1429,6 @@ void ReadJoystickClient(){
 
 
 
-//            G8RTOS_WaitSemaphore(&GameState_Semaphore);
-//            Current_GameState = GameState_Copy;
-//            G8RTOS_SignalSemaphore(&GameState_Semaphore);
 
             sleep(10);  //Given;
 //            sleep(30);
@@ -1349,6 +1450,11 @@ void ReadJoystickClient(){
  * -Kill self
  */
 void EndOfGameClient(){
+    //JUst in case the client is waiting for host
+    G8RTOS_WaitSemaphore(&CC3100_WIFI_Semaphore);
+    SendData((_u8*)&Current_GameState, HOST_IP_ADDR, sizeof(Current_GameState));
+    G8RTOS_SignalSemaphore(&CC3100_WIFI_Semaphore);
+
     //Wait for semaphores
     G8RTOS_WaitSemaphore(&I2C_Semaphore);
     G8RTOS_WaitSemaphore(&LCD_Semaphore);
@@ -1358,6 +1464,20 @@ void EndOfGameClient(){
 
     //Kill all other threads
     G8RTOS_KillAllOtherThreads();
+
+//    tcb_t *searcher = &threadControlBlocks[0];
+//    int i = 0;
+//    for(i = 0; i < MAX_THREADS; i++){
+//        if(searcher != CurrentlyRunningThread){
+//            if(searcher->isAlive && searcher->threadName == "MoveBall"){
+//                G8RTOS_KillThread(searcher->threadID);
+//            }
+//        }
+//
+//        searcher = &threadControlBlocks[i];
+//    }
+
+//    killBalls();
 
     //Re-init semaphores
     G8RTOS_InitSemaphore(&I2C_Semaphore, 1);
@@ -1391,12 +1511,19 @@ void EndOfGameClient(){
 
 
     //Adds all the CLIENT threads back
-    G8RTOS_AddThread(&DrawObjects, draw_priority, "DrawObjects");
+//    G8RTOS_AddThrea nd(&DrawObjects, draw_priority, "DrawObjects");
+//    G8RTOS_AddThread(&ReadJoystickClient, joystick_priority, "ReadJoyStkClient");
+//    G8RTOS_AddThread(&SendDataToHost, sendData_priority, "SendData2Host");
+//    G8RTOS_AddThread(&DrawObjects, draw_priority, "DrawObjects");
+//    G8RTOS_AddThread(&ReceiveDataFromH/77ost, receiveData_priority, "ReceiveDataFromHost");
+//    G8RTOS_AddThread(&DrawObjects, draw_priority, "DrawObjects");
+////    G8RTOS_AddThread(&MoveLEDs, moveLEDs_priority, "MoveLEDs");   //Lower priority
+//    G8RTOS_AddThread(&IdleThread, idle_priority, "Idle");
     G8RTOS_AddThread(&ReadJoystickClient, joystick_priority, "ReadJoyStkClient");
     G8RTOS_AddThread(&SendDataToHost, sendData_priority, "SendData2Host");
-    G8RTOS_AddThread(&ReceiveDataFromHost, receiveData_priority, "ReceiveDataFromHost");
-//    G8RTOS_AddThread(&DrawObjects, draw_priority, "DrawObjects");
-    G8RTOS_AddThread(&MoveLEDs, moveLEDs_priority, "MoveLEDs");   //Lower priority
+    G8RTOS_AddThread(&ReceiveDataFromHost, receiveData_priority, "RecDataFromHost");
+    G8RTOS_AddThread(&DrawObjects, draw_priority, "DrwObj");
+//    G8RTOS_AddThread(&MoveLEDs, moveLEDs_priority, "MoveLEDs");   //Lower priority
     G8RTOS_AddThread(&IdleThread, idle_priority, "Idle");
 
     //Kill self :(

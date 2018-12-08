@@ -93,6 +93,7 @@ Game.obj: C:/Users/Daniel/workspace_v8/Lab5/Libraries/CC3100SupportPackage/simpl
 Game.obj: C:/Users/Daniel/workspace_v8/Lab5/Libraries/CC3100SupportPackage/simplelink/include/netcfg.h
 Game.obj: C:/Users/Daniel/workspace_v8/Lab5/Libraries/CC3100SupportPackage/simplelink/include/wlan_rx_filters.h
 Game.obj: C:/Users/Daniel/workspace_v8/Lab5/Libraries/CC3100SupportPackage/SL_Common/sl_common.h
+Game.obj: C:/Users/Daniel/workspace_v8/Lab5/G8RTOS_Empty_Lab3/G8RTOS_Structures.h
 
 ../Game.c: 
 C:/ti/ccsv8/ccs_base/arm/include/msp.h: 
@@ -187,3 +188,4 @@ C:/Users/Daniel/workspace_v8/Lab5/Libraries/CC3100SupportPackage/simplelink/incl
 C:/Users/Daniel/workspace_v8/Lab5/Libraries/CC3100SupportPackage/simplelink/include/netcfg.h: 
 C:/Users/Daniel/workspace_v8/Lab5/Libraries/CC3100SupportPackage/simplelink/include/wlan_rx_filters.h: 
 C:/Users/Daniel/workspace_v8/Lab5/Libraries/CC3100SupportPackage/SL_Common/sl_common.h: 
+C:/Users/Daniel/workspace_v8/Lab5/G8RTOS_Empty_Lab3/G8RTOS_Structures.h: 

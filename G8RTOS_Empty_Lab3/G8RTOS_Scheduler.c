@@ -266,9 +266,136 @@ int G8RTOS_Launch()
  * Param "threadToAdd": Void-Void Function to add as preemptable main thread
  * Returns: Error code for adding threads
  */
+
+//sched_ErrCode_t G8RTOS_AddThread(void (*threadToAdd)(void), uint8_t priority, char * name)
+//{
+//    /* Implement this */
+//    uint32_t PRIMASK = StartCriticalSection();
+//    if(NumberOfThreads == MAX_THREADS){
+//        return THREAD_LIMIT_REACHED;  //Error Code, reached max number of threads, can't add new one
+//    }
+//    else{
+//        NumberOfThreads++;  //Adding a thread...
+//    }
+//
+//    tcb_t* newThread = &(threadControlBlocks[NumberOfThreads-1]);
+//    newThread->Stack_Pointer = &threadStacks[NumberOfThreads-1][STACKSIZE-16];  //Doesn't matter how many threads
+//
+//    //Only thread so points to itself
+//    //This might not be necessary?                 GET BACK TO THIS :)
+//    if(NumberOfThreads == 1){
+//        newThread->nextTCB = newThread;
+//        newThread->preTCB = newThread;
+//    }
+//    else{   //Not the only thread, loop through the threads to update pointers
+////        int i;
+////        for(i = 0; i < NumberOfThreads; i++){
+////            if(i == 0){ //Wrap around to end
+////                threadControlBlocks[i]->preTCB = threadControlBlocks[NumberOfThreads-1];
+////            }
+////            else{
+////                threadControlBlocks[i]->preTCB = threadControlBlocks[i-1];
+////            }
+////
+////            if(i == NumberOfThreads){ //Wrap around to beginning
+////                threadControlBlocks[i]->nextTCB = threadControlBlocks[0];
+////            }
+////            else{
+////                threadControlBlocks[i]->nextTCB = threadControlBlocks[i+1];
+////            }
+////        }
+//        //Actually only need to update the first thread to point to the new thread and the previous newest
+//        //thread to point to the new thread
+//        tcb_t *tempNextThread = &(threadControlBlocks[0]);
+//        bool lowestPriority = true;
+//        int j = 0;
+//        for(j = 0; j < NumberOfThreads; j++){
+//            if(priority < tempNextThread->priority){    //If higher priority, insert it
+//                newThread->nextTCB = tempNextThread;
+//                newThread->preTCB = tempNextThread->preTCB;
+//                tempNextThread->preTCB->nextTCB = newThread;
+//                tempNextThread->preTCB = newThread;
+//                lowestPriority = false;
+//                break;
+//            }
+//
+//            tempNextThread = &(threadControlBlocks[j]);
+//        }
+//
+//        //Insert at end
+//        if(lowestPriority){
+//            (threadControlBlocks[0]).preTCB = &(threadControlBlocks[NumberOfThreads-1]);    //Point to newest
+//            (threadControlBlocks[NumberOfThreads-2]).nextTCB = &(threadControlBlocks[NumberOfThreads-1]); //point to newest
+//            newThread->preTCB = &(threadControlBlocks[NumberOfThreads-2]);
+//            newThread->nextTCB = &(threadControlBlocks[0]);
+//        }
+//    }
+//
+//    //Give Fake News/Context
+//    /*
+//     * 1008 = SP (R13) (Moves up/down automatically as stack changes)
+//     * 1009-1016 = R4:R11 (1024 - 15 to 1024 - 8)
+//     * 1017-1020 = R0:3, R12 (1024 - 7 to 1024-4)
+//     * 1021 = LR (R14) (1024-3)
+//     * 1022 = PC (R15) (1024 - 2)
+//     * 1023 = PSR
+//     */
+//    int i = 0;
+//    for(i = 3; i < 16; i++){    //Give R0-R12 default values of 0b101 (for testing purposes)
+//        threadStacks[NumberOfThreads-1][STACKSIZE-i] = 5; //Look at table above
+//    }
+//
+//    threadStacks[NumberOfThreads-1][STACKSIZE-2] = (int32_t)threadToAdd; //PC to threads function pointer. int32_t fixes warning about void void
+//    threadStacks[NumberOfThreads-1][STACKSIZE-1] = THUMBBIT;   //PSR to some value with thumb-bit set
+//
+//    //IDCounter++;    //incrementys everytime a thread is initialized
+//    newThread->isAlive = true;
+//    //newThread->threadName = name;
+//
+//    i = 0;
+//    while(*name != '\0'){
+//        *((newThread->threadName) + i) = *name;
+//        name++;
+//        i++;
+//    }
+//    *((newThread->threadName) + i) = '\0';
+//
+//    newThread->priority = priority;
+//    uint32_t tcbToInitialize = 0;
+//    bool correct = true;
+//    for(i = 0; i < NumberOfThreads; i++){
+//        if(!(threadControlBlocks[i]).isAlive){
+//            correct = true;
+//            tcbToInitialize = i;
+//            i = NumberOfThreads;
+//            break;
+//            //ends the block
+//        }
+////        else{
+////            correct = false;
+//////            tcbToInitialize = i;
+//////            i = NumberOfThreads;
+////            //ends the block
+////        }
+//    }
+//
+//
+//
+//    newThread->threadID = ((IDCounter++)<<16) | tcbToInitialize;
+//
+//    EndCriticalSection(PRIMASK);
+//
+//    if(correct){
+//        return NO_ERROR;
+//    }
+//    else{
+//        return THREADS_INCORRECTLY_ALIVE;
+//    }
+//
+//}
 sched_ErrCode_t G8RTOS_AddThread(void (*threadToAdd)(void), uint8_t priority, char * name)
 {
-    /* Implement this */
+
     uint32_t PRIMASK = StartCriticalSection();
     if(NumberOfThreads == MAX_THREADS){
         return THREAD_LIMIT_REACHED;  //Error Code, reached max number of threads, can't add new one
@@ -276,9 +403,20 @@ sched_ErrCode_t G8RTOS_AddThread(void (*threadToAdd)(void), uint8_t priority, ch
     else{
         NumberOfThreads++;  //Adding a thread...
     }
-
-    tcb_t* newThread = &(threadControlBlocks[NumberOfThreads-1]);
-    newThread->Stack_Pointer = &threadStacks[NumberOfThreads-1][STACKSIZE-16];  //Doesn't matter how many threads
+    int i;
+    if(NumberOfThreads == 1){
+        i=0;
+    }
+    else{
+        for(i=0;i<MAX_THREADS;i++){
+            if(threadControlBlocks[i].isAlive == false){
+                break;
+            }
+        }
+    }
+    //i holds the index of the available tcb for a dead thread
+    tcb_t* newThread = &(threadControlBlocks[i]);
+    newThread->Stack_Pointer = &threadStacks[i][STACKSIZE-16];  //Doesn't matter how many threads
 
     //Only thread so points to itself
     //This might not be necessary?                 GET BACK TO THIS :)
@@ -286,96 +424,56 @@ sched_ErrCode_t G8RTOS_AddThread(void (*threadToAdd)(void), uint8_t priority, ch
         newThread->nextTCB = newThread;
         newThread->preTCB = newThread;
     }
-    else{   //Not the only thread, loop through the threads to update pointers
-//        int i;
-//        for(i = 0; i < NumberOfThreads; i++){
-//            if(i == 0){ //Wrap around to end
-//                threadControlBlocks[i]->preTCB = threadControlBlocks[NumberOfThreads-1];
-//            }
-//            else{
-//                threadControlBlocks[i]->preTCB = threadControlBlocks[i-1];
-//            }
-//
-//            if(i == NumberOfThreads){ //Wrap around to beginning
-//                threadControlBlocks[i]->nextTCB = threadControlBlocks[0];
-//            }
-//            else{
-//                threadControlBlocks[i]->nextTCB = threadControlBlocks[i+1];
-//            }
-//        }
-        //Actually only need to update the first thread to point to the new thread and the previous newest
-        //thread to point to the new thread
-        tcb_t *tempNextThread = &(threadControlBlocks[0]);
+    else{
+       // tcb_t *tempNextThread = &(threadControlBlocks[0]);
         bool lowestPriority = true;
         int j = 0;
         for(j = 0; j < NumberOfThreads; j++){
-            if(priority <= tempNextThread->priority){    //If higher priority, insert it
-                newThread->nextTCB = tempNextThread;
-                newThread->preTCB = tempNextThread->preTCB;
-                tempNextThread->preTCB->nextTCB = newThread;
-                tempNextThread->preTCB = newThread;
+            if(priority < (threadControlBlocks[j].priority)){    //If higher priority, insert it
+                newThread->nextTCB = &threadControlBlocks[j];
+                newThread->preTCB = threadControlBlocks[j].preTCB;
+                (threadControlBlocks[j].preTCB)->nextTCB = newThread;
+                threadControlBlocks[j].preTCB = newThread;
                 lowestPriority = false;
                 break;
             }
-
-            tempNextThread = &(threadControlBlocks[j]);
         }
-
         //Insert at end
         if(lowestPriority){
-            (threadControlBlocks[0]).preTCB = &(threadControlBlocks[NumberOfThreads-1]);    //Point to newest
-            (threadControlBlocks[NumberOfThreads-2]).nextTCB = &(threadControlBlocks[NumberOfThreads-1]); //point to newest
-            newThread->preTCB = &(threadControlBlocks[NumberOfThreads-2]);
+            (threadControlBlocks[0]).preTCB = &(threadControlBlocks[i]);    //Point to newest
+            (threadControlBlocks[j-2]).nextTCB = &(threadControlBlocks[i]); //point to newest
+            newThread->preTCB = &(threadControlBlocks[j-2]);
             newThread->nextTCB = &(threadControlBlocks[0]);
         }
     }
+    threadStacks[i][STACKSIZE-2] = (int32_t)threadToAdd; //PC to threads function pointer. int32_t fixes warning about void void
+    threadStacks[i][STACKSIZE-1] = THUMBBIT;   //PSR to some value with thumb-bit set
 
-    //Give Fake News/Context
-    /*
-     * 1008 = SP (R13) (Moves up/down automatically as stack changes)
-     * 1009-1016 = R4:R11 (1024 - 15 to 1024 - 8)
-     * 1017-1020 = R0:3, R12 (1024 - 7 to 1024-4)
-     * 1021 = LR (R14) (1024-3)
-     * 1022 = PC (R15) (1024 - 2)
-     * 1023 = PSR
-     */
-    int i = 0;
-    for(i = 3; i < 16; i++){    //Give R0-R12 default values of 0b101 (for testing purposes)
-        threadStacks[NumberOfThreads-1][STACKSIZE-i] = 5; //Look at table above
-    }
-
-    threadStacks[NumberOfThreads-1][STACKSIZE-2] = (int32_t)threadToAdd; //PC to threads function pointer. int32_t fixes warning about void void
-    threadStacks[NumberOfThreads-1][STACKSIZE-1] = THUMBBIT;   //PSR to some value with thumb-bit set
-
-    //IDCounter++;    //incrementys everytime a thread is initialized
     newThread->isAlive = true;
-    //newThread->threadName = name;
-
-    i = 0;
-    while(*name != '\0'){
-        *((newThread->threadName) + i) = *name;
+//    k = 0;
+//    while(*name != '\0'){
+//        *((newThread->threadName) + k) = *name;
+//        name++;
+//        k++;
+//    }
+//    *((newThread->threadName) + k) = '\0';
+    int k;
+    for(k=0;*name !=0;k++){
+        newThread->threadName[k] = *name;
         name++;
-        i++;
     }
-    *((newThread->threadName) + i) = '\0';
 
     newThread->priority = priority;
     uint32_t tcbToInitialize = 0;
-    bool correct = true;
-    for(i = 0; i < NumberOfThreads; i++){
-        if(!(threadControlBlocks[i]).isAlive){
+    bool correct = false;
+    for(k = 0; k < NumberOfThreads; k++){
+        if(!(threadControlBlocks[k]).isAlive){
             correct = true;
-            tcbToInitialize = i;
-            i = NumberOfThreads;
+            tcbToInitialize = k;
+            k = NumberOfThreads;
             break;
             //ends the block
         }
-//        else{
-//            correct = false;
-////            tcbToInitialize = i;
-////            i = NumberOfThreads;
-//            //ends the block
-//        }
     }
 
 
@@ -394,9 +492,10 @@ sched_ErrCode_t G8RTOS_AddThread(void (*threadToAdd)(void), uint8_t priority, ch
 }
 
 
+
 /*
  * Adds periodic threads to G8RTOS Scheduler
- * Function will initialize a periodic event struct to represent event.
+ * Function will inithialize a periodic event struct to represent event.
  * The struct will be added to a linked list of periodic events
  * Param Pthread To Add: void-void function for P thread handler
  * Param period: period of P thread to add
@@ -456,7 +555,7 @@ threadId_t G8RTOS_GetThreadId(){
 
 sched_ErrCode_t G8RTOS_KillThread(threadId_t threadId){
     int32_t PRIMASK;
-    PRIMASK = StartCriticalSection();
+    PRIMASK = StartCriticalSection(); //disables interrupts starts ciritcal section
 
     //Return error if only one thread running
     if(NumberOfThreads == 1){
@@ -467,29 +566,29 @@ sched_ErrCode_t G8RTOS_KillThread(threadId_t threadId){
 
     //Search for thread with same threadId
     bool correct = false;   //If found right thread
-    int i = 0;
+    int i;
     for(i = 0; i < NumberOfThreads; i++){
+        if(i == MAX_THREADS){
+            return THREAD_DOES_NOT_EXIST;
+        }
         if(searcher->threadID == threadId){
-            correct = true;
-            i = NumberOfThreads;    //Close da loop
             break;
         }
-        searcher = searcher->nextTCB;
     }
 
-    //Return error if thread was never found :(
-    if(!correct){
-        return THREAD_DOES_NOT_EXIST;
-    }
+
 
     //rip
     searcher->isAlive = false;
 
     //Close the gap (update thread pointers)
-    tcb_t *previousThread = searcher->preTCB;
-    previousThread->nextTCB = searcher->nextTCB;
-    tcb_t *nextThread = searcher->nextTCB;
-    nextThread->preTCB = searcher->preTCB;
+//    tcb_t *previousThread = searcher->preTCB;
+//    previousThread->nextTCB = searcher->nextTCB;
+//    tcb_t *nextThread = searcher->nextTCB;
+//    nextThread->preTCB = searcherd->preTCB;
+    (threadControlBlocks[i].preTCB)->nextTCB  = threadControlBlocks[i].nextTCB;
+    (threadControlBlocks[i].nextTCB)->preTCB  = threadControlBlocks[i].preTCB;
+
 
     //Decrement number of threads
     NumberOfThreads--;
@@ -504,6 +603,57 @@ sched_ErrCode_t G8RTOS_KillThread(threadId_t threadId){
 
     return NO_ERROR;
 }
+
+//sched_ErrCode_t G8RTOS_KillThread(threadId_t threadId){
+//    int32_t PRIMASK;
+//    PRIMASK = StartCriticalSection();
+//
+//    //Return error if only one thread running
+//    if(NumberOfThreads == 1){
+//        return CANNOT_KILL_LAST_THREAD;
+//    }
+//
+//    tcb_t *searcher = CurrentlyRunningThread;
+//
+//    //Search for thread with same threadId
+//    bool correct = false;   //If found right thread
+//    int i = 0;
+//    for(i = 0; i < NumberOfThreads; i++){
+//        if(searcher->threadID == threadId){
+//            correct = true;
+//            i = NumberOfThreads;    //Close da loop
+//            break;
+//        }
+//        searcher = searcher->nextTCB;
+//    }
+//
+//    //Return error if thread was never found :(
+//    if(!correct){
+//        return THREAD_DOES_NOT_EXIST;
+//    }
+//
+//    //rip
+//    searcher->isAlive = false;
+//
+//    //Close the gap (update thread pointers)
+//    tcb_t *previousThread = searcher->preTCB;
+//    previousThread->nextTCB = searcher->nextTCB;
+//    tcb_t *nextThread = searcher->nextTCB;
+//    nextThread->preTCB = searcher->preTCB;
+//
+//    //Decrement number of threads
+//    NumberOfThreads--;
+//
+//    EndCriticalSection(PRIMASK);
+//
+//    //If we killed the currentlyRunningThread then we need to do context switching
+//    if(searcher == CurrentlyRunningThread){
+//        SCB -> ICSR |= SCB_ICSR_PENDSVSET_Msk;      //Pend the PENSV interrupt to the interrupt controller,
+//                                                    //causing it to execute on the next available time
+//    }
+//
+//    return NO_ERROR;
+//}
 
 sched_ErrCode_t G8RTOS_KillSelf(){
     int32_t PRIMASK;
@@ -537,6 +687,8 @@ sched_ErrCode_t G8RTOS_KillSelf(){
 //                                                //causing it to execute on the next available time
 
     return NO_ERROR;
+
+//    return G8RTOS_KillThread(CurrentlyRunningThread->threadID);
 }
 
 sched_ErrCode_t G8RTOS_AddAPeriodicEvent(void (*AthreadToAdd)(void), uint8_t priority, IRQn_Type IRQn){
@@ -585,29 +737,55 @@ sched_ErrCode_t G8RTOS_KillAllOtherThreads(){
     }
 
     //Have it pointing to the next thread so we dont kill the current one
-    tcb_t *searcher = CurrentlyRunningThread->nextTCB;
+    tcb_t *searcher = &threadControlBlocks[0];
 
     //We don't need to do any fancy next or prev pointer fixing because we are left with one
     int i = 0;  //Compiler pls
-    for(i = 0;  i < NumberOfThreads; i++){
-        searcher->isAlive = false;
-        searcher = searcher->nextTCB;
-
-        //Worked better than NumberOfThreads - 1
-        if(searcher == CurrentlyRunningThread){
-            break;
+//    for(i = 0;  i < NumberOfThreads; i++){
+////        searcher->isAlive = false;
+//        if(searcher->isAlive){
+//            G8RTOS_KillThread(searcher->threadID);
+//        }
+//        searcher = searcher->nextTCB;
+//
+//        //Worked better than NumberOfThreads - 1
+//        if(searcher == Currentx/lyRunningThread){
+//            break;
+//        }
+//    }
+    for(i = 0; i < MAX_THREADS; i++){
+        if(searcher != CurrentlyRunningThread){
+            if(searcher->isAlive){
+                G8RTOS_KillThread(searcher->threadID);
+            }
         }
+
+        searcher = &threadControlBlocks[i];
     }
 
-    //Decrement thread count
-    NumberOfThreads = 1;
-
-    //Fix currentlyrunningthreads pointers
-    CurrentlyRunningThread->preTCB = CurrentlyRunningThread;
-    CurrentlyRunningThread->nextTCB = CurrentlyRunningThread;
+//    //Decrement thread count
+//    NumberOfThreads = 1;
+//
+//    //Fix currentlyrunningthreads pointers
+//    CurrentlyRunningThread->preTCB = CurrentlyRunningThread;
+//    CurrentlyRunningThread->nextTCB = CurrentlyRunningThread;
 
     EndCriticalSection(PRIMASK);
     return NO_ERROR;
+}
+
+void killBalls(){
+    tcb_t *searcher = &threadControlBlocks[0];
+    int i = 0;
+    for(i = 0; i < MAX_THREADS; i++){
+        if(searcher != CurrentlyRunningThread){
+            if(searcher->isAlive && searcher->threadName == "MoveBall"){
+                G8RTOS_KillThread(searcher->threadID);
+            }
+        }
+
+        searcher = &threadControlBlocks[i];
+    }
 }
 
 /*********************************************** Public Functions *********************************************************************/

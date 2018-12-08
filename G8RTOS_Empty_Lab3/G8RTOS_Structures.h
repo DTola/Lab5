@@ -16,6 +16,7 @@
 
 #define MAX_NAME_LENGTH 16
 
+
 /*
  *  Thread Control Block:
  *      - Every thread has a Thread Control Block
@@ -51,6 +52,8 @@ typedef struct tcb_t{
     char threadName[MAX_NAME_LENGTH];
 
 } tcb_t;
+
+//extern tcb_t threadControlBlocks[MAX_THREADS];
 
 
 /*
